@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { Bus, MapPin, Hand, CheckCircle2 } from 'lucide-react';
 import type { RouteResult } from '@/data/mockTransitData';
 
@@ -13,12 +12,7 @@ interface LiveTripCardProps {
 
 export default function LiveTripCard({ route, canCheckIn, canHalt, onCheckIn, onHalt, onCancel }: LiveTripCardProps) {
   return (
-    <motion.div
-      initial={{ y: 100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 100, opacity: 0 }}
-      className="fixed bottom-0 left-0 right-0 z-50 p-4"
-    >
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-slide-up">
       <div className="transit-panel p-4 max-w-lg mx-auto">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -74,6 +68,6 @@ export default function LiveTripCard({ route, canCheckIn, canHalt, onCheckIn, on
           </p>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

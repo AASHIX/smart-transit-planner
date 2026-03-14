@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { AnimatePresence } from 'framer-motion';
 import { Bus, Menu } from 'lucide-react';
 import TransitMap from '@/components/transit/TransitMap';
 import SearchPanel from '@/components/transit/SearchPanel';
@@ -91,7 +90,7 @@ const Index = () => {
       <div className={`absolute top-0 left-0 bottom-0 z-20 w-full max-w-[400px] transition-transform duration-300 ${
         panelOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="h-full overflow-y-auto p-3 pt-16 pb-32 space-y-3 scrollbar-hide">
+        <div className="h-full overflow-y-auto p-3 pt-16 pb-32 space-y-3">
           <SearchPanel onSearch={handleSearch} isSearching={isSearching} />
           <RouteResults
             routes={routes}
@@ -103,18 +102,16 @@ const Index = () => {
       </div>
 
       {/* Live trip card */}
-      <AnimatePresence>
-        {scheduledTrip && (
-          <LiveTripCard
-            route={scheduledTrip}
-            canCheckIn={true}
-            canHalt={isEligibleForHalt}
-            onCheckIn={handleCheckIn}
-            onHalt={handleHalt}
-            onCancel={() => setScheduledTrip(null)}
-          />
-        )}
-      </AnimatePresence>
+      {scheduledTrip && (
+        <LiveTripCard
+          route={scheduledTrip}
+          canCheckIn={true}
+          canHalt={isEligibleForHalt}
+          onCheckIn={handleCheckIn}
+          onHalt={handleHalt}
+          onCancel={() => setScheduledTrip(null)}
+        />
+      )}
 
       {/* Profile modal */}
       <ProfileModal open={showProfile} onComplete={handleProfileComplete} />

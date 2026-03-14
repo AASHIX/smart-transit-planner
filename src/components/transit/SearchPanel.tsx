@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Search, MapPin, Clock, ArrowRight, Navigation } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Search, MapPin, Clock, Navigation } from 'lucide-react';
 
 interface SearchPanelProps {
   onSearch: (from: string, to: string) => void;
@@ -17,11 +16,7 @@ export default function SearchPanel({ onSearch, isSearching }: SearchPanelProps)
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="transit-panel p-4"
-    >
+    <div className="transit-panel p-4 animate-fade-in">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
           <Navigation className="w-4 h-4 text-primary-foreground" />
@@ -72,6 +67,6 @@ export default function SearchPanel({ onSearch, isSearching }: SearchPanelProps)
           </button>
         </div>
       </form>
-    </motion.div>
+    </div>
   );
 }
