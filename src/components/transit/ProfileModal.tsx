@@ -14,14 +14,15 @@ const months = [
 ];
 
 export default function ProfileModal({ open, onComplete }: ProfileModalProps) {
-  const [birthYear, setBirthYear] = useState<number>(1990);
-  const [birthMonth, setBirthMonth] = useState<number>(1);
+  const [birthYear, setBirthYear] = useState<number | null>(null);
+  const [birthMonth, setBirthMonth] = useState<number | null>(null);
   const [hasDisability, setHasDisability] = useState(false);
 
   if (!open) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!birthYear || !birthMonth) return;
     onComplete({ birthYear, birthMonth, hasDisability });
   };
 
@@ -43,10 +44,11 @@ export default function ProfileModal({ open, onComplete }: ProfileModalProps) {
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Birth Year</label>
               <select
-                value={birthYear}
+                value={birthYear ?? ''}
                 onChange={(e) => setBirthYear(Number(e.target.value))}
                 className="transit-search-input"
               >
+                <option value="" disabled>Select year</option>
                 {years.map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
@@ -55,10 +57,11 @@ export default function ProfileModal({ open, onComplete }: ProfileModalProps) {
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Birth Month</label>
               <select
-                value={birthMonth}
+                value={birthMonth ?? ''}
                 onChange={(e) => setBirthMonth(Number(e.target.value))}
                 className="transit-search-input"
               >
+                <option value="" disabled>Select month</option>
                 {months.map((m, i) => (
                   <option key={i} value={i + 1}>{m}</option>
                 ))}
@@ -80,12 +83,12 @@ export default function ProfileModal({ open, onComplete }: ProfileModalProps) {
               } relative`}
             >
               <span className={`absolute top-1 w-5 h-5 rounded-full bg-card shadow transition-transform duration-200 ${
-                hasDisability ? 'translate-x-6' : 'translate-x-1'
+                hasDisability ? 'translate-x-0' : 'translate-x-0'
               }`} />
             </button>
           </div>
 
-          <button type="submit" className="transit-btn-primary w-full">
+          <button type="submit" className="transit-btn-primary w-full" disabled={!birthYear || !birthMonth}>
             Get Started
           </button>
         </form>

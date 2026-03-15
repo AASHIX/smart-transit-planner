@@ -1,5 +1,3 @@
-import { supabase } from '@/integrations/supabase/client';
-
 export interface RealtimeBus {
   id: string;
   tripId: string;
@@ -22,42 +20,58 @@ export interface NearbyStop {
   wheelchair_boarding: number;
 }
 
-// Fetch realtime vehicle positions
+const BASE_URL = 'http://localhost:3001/api';
+
+export async function fetchNearbyRoutes(lat: number, lon: number, departureTime?: number) {
+  const params = new URLSearchParams({
+    lat: lat.toString(),
+    lon: lon.toString(),
+    max_distance: '1500',
+    max_num_departures: '5',
+    should_update_realtime: 'true',
+    ...(departureTime ? { time: departureTime.toString() } : {}),
+  });
+
+  const res = await fetch(`${BASE_URL}/nearby_routes?${params}`);
+  if (!res.ok) throw new Error(`Transit API error: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchNearbyStops(lat: number, lon: number): Promise<NearbyStop[]> {
+  const params = new URLSearchParams({
+    lat: lat.toString(),
+    lon: lon.toString(),
+    max_distance: '500',
+  });
+
+  const res = await fetch(`${BASE_URL}/nearby_stops?${params}`);
+  if (!res.ok) throw new Error(`Transit API error: ${res.status}`);
+  const data = await res.json();
+  return data?.stops || [];
+}
+
+import { transit_realtime } from 'gtfs-realtime-bindings';
+
 export async function fetchRealtimeVehicles(): Promise<RealtimeBus[]> {
   try {
-    const { data, error } = await supabase.functions.invoke('gtfs-realtime?feed=vehicles');
-    if (error) throw error;
-    return data?.vehicles || [];
+    const res = await fetch('http://localhost:3001/api/vehicles');
+    const buffer = await res.arrayBuffer();
+    const feed = transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
+    return feed.entity
+      .filter(e => e.vehicle?.position)
+      .map(e => ({
+        id: e.id,
+        tripId: e.vehicle?.trip?.tripId || '',
+        routeId: e.vehicle?.trip?.routeId || '',
+        lat: e.vehicle!.position!.latitude,
+        lng: e.vehicle!.position!.longitude,
+        bearing: e.vehicle?.position?.bearing || 0,
+        speed: e.vehicle?.position?.speed || 0,
+        label: e.vehicle?.vehicle?.label || e.id,
+        timestamp: Number(e.vehicle?.timestamp) || Date.now(),
+      }));
   } catch (e) {
-    console.error('Error fetching realtime vehicles:', e);
+    console.error('Vehicle fetch error:', e);
     return [];
-  }
-}
-
-// Fetch nearby stops via Transit API
-export async function fetchNearbyStops(lat: number, lng: number, maxDistance = 500): Promise<NearbyStop[]> {
-  try {
-    const { data, error } = await supabase.functions.invoke(
-      `transit-proxy?endpoint=/v3/public/nearby_stops&lat=${lat}&lon=${lng}&max_distance=${maxDistance}`
-    );
-    if (error) throw error;
-    return data?.stops || [];
-  } catch (e) {
-    console.error('Error fetching nearby stops:', e);
-    return [];
-  }
-}
-
-// Fetch stop departures
-export async function fetchStopDepartures(globalStopId: string) {
-  try {
-    const { data, error } = await supabase.functions.invoke(
-      `transit-proxy?endpoint=/v3/public/stop_departures&global_stop_id=${globalStopId}`
-    );
-    if (error) throw error;
-    return data;
-  } catch (e) {
-    console.error('Error fetching stop departures:', e);
-    return null;
   }
 }

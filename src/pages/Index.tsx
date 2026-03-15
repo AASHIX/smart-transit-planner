@@ -8,11 +8,36 @@ import ProfileModal from '@/components/transit/ProfileModal';
 import { mockStops, mockRouteResults, type RouteResult } from '@/data/mockTransitData';
 import { useRealtimeBuses } from '@/hooks/useRealtimeBuses';
 import { toast } from 'sonner';
+import { fetchNearbyRoutes } from '@/services/transitApi';
 
 interface UserProfile {
   birthYear: number;
   birthMonth: number;
   hasDisability: boolean;
+}
+
+async function geocode(query: string): Promise<{ lat: number; lng: number; display: string } | null> {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ' Durham Region Ontario')}&format=json&limit=1`;
+  const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+  const data = await res.json();
+  if (!data.length) return null;
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display: data[0].display_name };
+}
+
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function getRoadPolyline(from: {lat: number, lng: number}, to: {lat: number, lng: number}): Promise<[number, number][]> {
+  const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data.routes?.length) return [[from.lat, from.lng], [to.lat, to.lng]];
+  return data.routes[0].geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
 }
 
 const Index = () => {
@@ -34,12 +59,58 @@ const Index = () => {
     toast.success(`Welcome! ${age >= 65 || p.hasDisability ? 'Accessibility features enabled.' : 'Your profile is set up.'}`);
   }, []);
 
-  const handleSearch = useCallback((_from: string, _to: string) => {
+  const handleSearch = useCallback(async (from: string, to: string) => {
     setIsSearching(true);
-    setTimeout(() => {
-      setRoutes(mockRouteResults);
-      setIsSearching(false);
-    }, 600);
+    setRoutes([]);
+  
+    const [fromCoord, toCoord] = await Promise.all([geocode(from), geocode(to)]);
+  
+    if (!fromCoord) { toast.error(`Location not found: "${from}"`); setIsSearching(false); return; }
+    if (!toCoord) { toast.error(`Location not found: "${to}"`); setIsSearching(false); return; }
+  
+    try {
+      const [fromData, polyline] = await Promise.all([
+        fetchNearbyRoutes(fromCoord.lat, fromCoord.lng),
+        getRoadPolyline(fromCoord, toCoord),
+      ]);
+  
+      const realRoutes = (fromData.routes || []).map((r: any) => {
+        const itinerary = r.itineraries?.[0];
+        const schedule = itinerary?.schedule_items?.[0];
+        const depTime = schedule ? new Date(schedule.departure_time * 1000) : new Date();
+        const arrTime = new Date(depTime.getTime() + 30 * 60000); // estimate 30 min
+  
+        return {
+          id: r.global_route_id,
+          routeName: r.route_long_name || r.route_short_name,
+          routeNumber: r.route_short_name,
+          departureTime: depTime.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' }),
+          arrivalTime: arrTime.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' }),
+          duration: '~30 min',
+          transfers: 0,
+          status: 'on-time' as const,
+          stops: [
+            { name: itinerary?.closest_stop?.stop_name || from, time: depTime.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' }) },
+            { name: to, time: arrTime.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' }) },
+          ],
+          polyline,
+        };
+      });
+  
+      if (realRoutes.length === 0) {
+        toast.info('No routes found near that location');
+        setIsSearching(false);
+        return;
+      }
+  
+      setRoutes(realRoutes);
+      toast.info(`${realRoutes.length} route(s) found`);
+    } catch (err) {
+      toast.error('Failed to fetch routes — check your API key');
+      console.error(err);
+    }
+  
+    setIsSearching(false);
   }, []);
 
   const handleScheduleTrip = useCallback((route: RouteResult) => {

@@ -82,19 +82,44 @@ export default function TransitMap({ stops, buses, selectedRoute }: TransitMapPr
   // Update selected route
   useEffect(() => {
     if (!mapRef.current) return;
-
+  
     if (routeLayerRef.current) {
       routeLayerRef.current.remove();
       routeLayerRef.current = null;
     }
-
+  
     if (selectedRoute && selectedRoute.polyline.length > 0) {
       routeLayerRef.current = L.polyline(selectedRoute.polyline, {
         color: '#006747',
         weight: 5,
         opacity: 0.8,
       }).addTo(mapRef.current);
-
+  
+      const start = selectedRoute.polyline[0];
+      const end = selectedRoute.polyline[selectedRoute.polyline.length - 1];
+  
+      const startIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;background:#22c55e;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+  
+      const endIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+  
+      L.marker([start[0], start[1]], { icon: startIcon })
+        .bindPopup(`<strong>Start:</strong> ${selectedRoute.stops[0]?.name ?? 'Origin'}`)
+        .addTo(mapRef.current);
+  
+      L.marker([end[0], end[1]], { icon: endIcon })
+        .bindPopup(`<strong>End:</strong> ${selectedRoute.stops[selectedRoute.stops.length - 1]?.name ?? 'Destination'}`)
+        .addTo(mapRef.current);
+  
       const bounds = L.latLngBounds(selectedRoute.polyline.map(p => L.latLng(p[0], p[1])));
       mapRef.current.fitBounds(bounds, { padding: [60, 60] });
     }
